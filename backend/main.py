@@ -1,7 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from wing_model import analyze_wing
+try:
+    from .wing_model import analyze_wing
+except (ImportError, ValueError):
+    from wing_model import analyze_wing
 import uvicorn
 
 app = FastAPI(title="Wing Analyzer API", version="2.0")
