@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wing Analyzer | AeroML Professional</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Lato:wght@300;400;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <!-- Scripts -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary: #1d4ed8;
+            --secondary: #475569;
+            --accent: #f59e0b;
+            --bg: #ffffff;
+            --surface: #f8fafc;
+            --text: #0f172a;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Lato', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        h1, h2, h3 { font-family: 'Playfair Display', serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Custom Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px; height: 16px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
+
+        .custom-shadow { box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        .glass-sidebar { background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); }
+        
+        /* Tab Transitions */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; height: 100%; }
+        
+        .nav-tab {
+            position: relative;
+            transition: all 0.2s;
+        }
+        .nav-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px; left: 0; right: 0;
+            height: 2px;
+            background: var(--primary);
+        }
+
+        .chart-container {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        /* ── Tab Navigation ── */
+        .tabs {
+            display: flex;
+            align-items: center;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 0 24px;
+            flex-shrink: 0;
+        }
+        .tab {
+            padding: 12px 16px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #94a3b8;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .tab:hover { color: #475569; }
+        .tab.active { color: #1d4ed8; border-bottom-color: #1d4ed8; }
+
+        /* ── Chart Panels ── */
+        .chart-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+        .chart-panel { display: none; flex: 1; overflow-y: auto; padding: 20px; }
+        .chart-panel.active { display: block; }
+
+        /* ── Chart Grid ── */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+        .grid-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .chart-title {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+
+        /* ── Empty State ── */
+        .empty-state {
+            text-align: center;
+            color: #cbd5e1;
+            font-size: 13px;
+            padding: 48px 0;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ── Analyze Button ── */
+        .primary-btn {
+            background: #1d4ed8;
+            color: white;
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            padding: 12px 24px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s, opacity 0.2s;
+            width: 100%;
+        }
+        .primary-btn:hover { background: #1e40af; }
+        .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ── Velocity Slider (fix inconsistency) ── */
+        .slider-group { /* same as slider-box */ }
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+        .slider-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+        .slider-value {
+            font-size: 12px;
+            font-weight: 700;
+            color: #1d4ed8;
+            font-family: 'JetBrains Mono', monospace;
+        }
+    </style>
+</head>
+<body class="flex flex-col">
+
+    <!-- HEADER -->
+    <header class="h-16 border-b border-slate-200 px-8 flex items-center justify-between flex-shrink-0 bg-white">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 bg-blue-700 rounded flex items-center justify-center text-white font-bold text-xl">W</div>
+            <div>
+                <h1 class="text-xl font-bold leading-tight">Wing Analyzer <span class="text-blue-700">Pro</span></h1>
+                <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Aerodynamic Multi-Lifting Line Theory Analysis Engine</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-6">
+            <div id="api-status" class="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-tighter">
+                <span class="w-2 h-2 rounded-full bg-slate-300"></span>
+                <span>Connecting...</span>
+            </div>
+            <div class="h-8 w-[1px] bg-slate-200"></div>
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] text-slate-400 font-bold uppercase">Built for</span>
+                <img src="https://img.icons8.com/color/48/university.png" alt="iawer" class="w-6 h-6 grayscale">
+                <span class="text-xs font-bold text-slate-600">IARE Hyderabad</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- SIDEBAR -->
+        <aside class="w-80 border-r border-slate-200 glass-sidebar flex flex-col flex-shrink-0">
+            <div class="p-6 border-b border-slate-100">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Configuration</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <button data-preset="ga" onclick="setPreset('ga')" class="preset-btn active px-3 py-2 text-[11px] font-bold border border-slate-200 rounded hover:border-blue-600 transition-colors uppercase">GA Plane</button>
+                    <button data-preset="commercial" onclick="setPreset('commercial')" class="preset-btn px-3 py-2 text-[11px] font-bold border border-slate-200 rounded hover:border-blue-600 transition-colors uppercase">Jet Liner</button>
+                    <button data-preset="fighter" onclick="setPreset('fighter')" class="preset-btn px-3 py-2 text-[11px] font-bold border border-slate-200 rounded hover:border-blue-600 transition-colors uppercase">Fighter</button>
+                    <button data-preset="glider" onclick="setPreset('glider')" class="preset-btn px-3 py-2 text-[11px] font-bold border border-slate-200 rounded hover:border-blue-600 transition-colors uppercase">High AR Glider</button>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                <!-- Parameters -->
+                <div class="space-y-4">
+                    <div class="slider-box">
+                        <div class="flex justify-between mb-1">
+                            <label class="text-[11px] font-bold text-slate-500 uppercase">Wingspan</label>
+                            <span id="val-span" class="text-xs font-bold text-blue-700 mono">11.0 m</span>
+                        </div>
+                        <input type="range" id="sl-span" min="4" max="60" step="0.5" value="11" oninput="updateVal('span', this.value, ' m')">
+                    </div>
+
+                    <div class="slider-box">
+                        <div class="flex justify-between mb-1">
+                            <label class="text-[11px] font-bold text-slate-500 uppercase">Aspect Ratio</label>
+                            <span id="val-ar" class="text-xs font-bold text-blue-700 mono">7.2</span>
+                        </div>
+                        <input type="range" id="sl-ar" min="2" max="25" step="0.1" value="7.2" oninput="updateVal('ar', this.value, '')">
+                    </div>
+
+                    <div class="slider-box">
+                        <div class="flex justify-between mb-1">
+                            <label class="text-[11px] font-bold text-slate-500 uppercase">Taper Ratio</label>
+                            <span id="val-taper" class="text-xs font-bold text-blue-700 mono">0.45</span>
+                        </div>
+                        <input type="range" id="sl-taper" min="0.1" max="1.0" step="0.01" value="0.45" oninput="updateVal('taper', this.value, '')">
+                    </div>
+
+                    <div class="slider-box">
+                        <div class="flex justify-between mb-1">
+                            <label class="text-[11px] font-bold text-slate-500 uppercase">Sweep Angle</label>
+                            <span id="val-sweep" class="text-xs font-bold text-blue-700 mono">3°</span>
+                        </div>
+                        <input type="range" id="sl-sweep" min="0" max="60" step="0.5" value="3" oninput="updateVal('sweep', this.value, '°')">
+                    </div>
+
+                    <div class="slider-box">
+                        <div class="flex justify-between mb-1">
+                            <label class="text-[11px] font-bold text-slate-500 uppercase">Altitude</label>
+                            <span id="val-alt" class="text-xs font-bold text-blue-700 mono">2000 m</span>
+                        </div>
+                        <input type="range" id="sl-alt" min="0" max="12000" step="100" value="2000" oninput="updateVal('alt', this.value, ' m')">
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <span class="slider-label">Cruise Speed</span>
+                            <span class="slider-value" id="val-vel">55 m/s</span>
+                        </div>
+                        <input type="range" id="sl-vel" min="20" max="300" step="1" value="55" oninput="updateVal('vel', this.value, ' m/s')">
+                    </div>
+
+
+                </div>
+            </div>
+
+            <div class="p-6 bg-slate-50 border-t border-slate-200">
+                <button id="analyze-btn" onclick="runAnalysis()" class="primary-btn w-full">
+                    ▶ RUN ANALYSIS
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN WINDOW -->
+        <main class="flex-1 flex flex-col bg-slate-50 overflow-hidden">
+            
+            <!-- STATS STRIP -->
+            <div class="grid grid-cols-4 bg-white border-b border-slate-200 divide-x divide-slate-100 flex-shrink-0">
+                <div class="p-4 px-6">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-2">Maximum Efficiency</p>
+                    <div class="flex items-baseline gap-2">
+                        <span id="m-ld" class="text-2xl font-bold text-slate-800">—</span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">L/D Ratio</span>
+                    </div>
+                </div>
+                <div class="p-4 px-6">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-2">Optimal Lift</p>
+                    <div class="flex items-baseline gap-2">
+                        <span id="m-cl" class="text-2xl font-bold text-slate-800">—</span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">C<sub>L</sub> Coeff</span>
+                    </div>
+                </div>
+                <div class="p-4 px-6">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-2">Structural Moment</p>
+                    <div class="flex items-baseline gap-2">
+                        <span id="m-rbm" class="text-2xl font-bold text-slate-800">—</span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">RBM (kN·m)</span>
+                    </div>
+                </div>
+                <div class="p-4 px-6">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-2">Stall Margin</p>
+                    <div class="flex items-baseline gap-2">
+                        <span id="m-stall" class="text-2xl font-bold text-red-600">—</span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">AoA (Deg)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 py-2 bg-blue-50 border-b border-blue-100 flex-shrink-0">
+                <p class="text-[11px] text-blue-700 font-bold">
+                    <span class="text-slate-400 uppercase tracking-widest mr-2">Recommendation</span>
+                    <span id="rec-text" class="mono">—</span>
+                </p>
+            </div>
+
+            <!-- TABS NAVIGATION -->
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('analysis', this)">Aerodynamic Analysis</div>
+                <div class="tab" onclick="switchTab('3d', this)">3D Visual Model</div>
+            </div>
+
+            <!-- CHART AREA -->
+            <div class="chart-area flex-1 overflow-y-auto">
+                <!-- ANALYSIS PANEL -->
+                <div class="chart-panel active" id="panel-analysis">
+                    <div class="chart-grid">
+                        <div class="grid-card">
+                            <div class="chart-title">Wing Polars (CL / CD)</div>
+                            <div id="plot-polar"></div>
+                            <div class="empty-state" id="empty-polar">Run analysis...</div>
+                        </div>
+                        <div class="grid-card">
+                            <div class="chart-title">Spanwise Loading (CL)</div>
+                            <div id="plot-cl-dist"></div>
+                            <div class="empty-state" id="empty-cl-dist">Run analysis...</div>
+                        </div>
+                        <div class="grid-card">
+                            <div class="chart-title">Stall Margin Distribution</div>
+                            <div id="plot-stall"></div>
+                            <div class="empty-state" id="empty-stall">Run analysis...</div>
+                        </div>
+                        <div class="grid-card">
+                            <div class="chart-title">Total Drag Budget (Counts)</div>
+                            <div id="plot-budget"></div>
+                            <div class="empty-state" id="empty-budget">Run analysis...</div>
+                        </div>
+
+                        <div class="grid-card">
+                          <div class="chart-title">Lift Curve — CL vs α</div>
+                          <div id="plot-cl-alpha"></div>
+                          <div class="empty-state" id="empty-cl-alpha">Run analysis...</div>
+                        </div>
+                        <div class="grid-card">
+                          <div class="chart-title">Drag Curve — CD vs α</div>
+                          <div id="plot-cd-alpha"></div>
+                          <div class="empty-state" id="empty-cd-alpha">Run analysis...</div>
+                        </div>
+                        <div class="grid-card">
+                          <div class="chart-title">Efficiency — L/D vs α</div>
+                          <div id="plot-ld-alpha"></div>
+                          <div class="empty-state" id="empty-ld-alpha">Run analysis...</div>
+                        </div>
+                        <div class="grid-card">
+                          <div class="chart-title">Induced Drag — CDi vs α</div>
+                          <div id="plot-cdi-alpha"></div>
+                          <div class="empty-state" id="empty-cdi-alpha">Run analysis...</div>
+                        </div>
+                        <div class="grid-card">
+                          <div class="chart-title">Pitching Moment — Cm vs α</div>
+                          <div id="plot-cm-alpha"></div>
+                          <div class="empty-state" id="empty-cm-alpha">Run analysis...</div>
+                        </div>
+                        <div class="grid-card">
+                          <div class="chart-title">Induced AoA Distribution</div>
+                          <div id="plot-alpha-i"></div>
+                          <div class="empty-state" id="empty-alpha-i">Run analysis...</div>
+                        </div>                        <div class="grid-card">
+                            <div class="chart-title">Wing Planform (2D)</div>
+                            <div id="plot-planform"></div>
+                            <div class="empty-state" id="empty-planform">Run analysis...</div>
+                        </div>
+                    </div>
+                </div>
+
+
+
+                <!-- 3D PANEL -->
+                <div class="chart-panel" id="panel-3d">
+                    <div id="plot-3d" style="height: 500px;"></div>
+                    <div class="empty-state" id="empty-3d">Run analysis to build model...</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const API_BASE = window.location.hostname === 'localhost'
+            ? 'http://localhost:8000'
+            : '';
+        let activePreset = 'ga';
+
+        const PRESETS = {
+            ga:         { span:11,  ar:7.2,  taper:0.45, sweep:3,  alt:2000,  vel:55  },
+            commercial: { span:60,  ar:9.5,  taper:0.28, sweep:28, alt:11000, vel:240 },
+            fighter:    { span:9,   ar:2.8,  taper:0.25, sweep:35, alt:8000,  vel:280 },
+            glider:     { span:20,  ar:22,   taper:0.55, sweep:1,  alt:1500,  vel:28  },
+            uav:        { span:3.5, ar:8.0,  taper:0.60, sweep:5,  alt:500,   vel:22  }
+        };
+
+        function updateVal(key, val, unit) {
+            const ids = {
+                span: 'val-span', ar: 'val-ar', taper: 'val-taper', 
+                sweep: 'val-sweep', alt: 'val-alt', vel: 'val-vel'
+            };
+            if (ids[key]) document.getElementById(ids[key]).innerText = val + unit;
+        }
+
+        function setPreset(key) {
+            activePreset = key;
+            const p = PRESETS[key];
+            
+            // UI Update
+            document.querySelectorAll('.preset-btn').forEach(b => {
+                b.classList.remove('active', 'bg-blue-700', 'text-white', 'border-blue-600');
+                if (b.dataset.preset === key) {
+                    b.classList.add('active', 'bg-blue-700', 'text-white');
+                }
+            });
+
+            const mappings = [
+                ['sl-span', p.span, ' m'], ['sl-ar', p.ar, ''], ['sl-taper', p.taper, ''],
+                ['sl-sweep', p.sweep, '°'], ['sl-alt', p.alt, ' m'], ['sl-vel', p.vel, ' m/s']
+            ];
+            mappings.forEach(([id, val, unit]) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.value = val;
+                    updateVal(id.split('-')[1], val, unit);
+                }
+            });
+        }
+
+        function switchTab(tabId, el) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.chart-panel').forEach(p => p.classList.remove('active'));
+            
+            el.classList.add('active');
+            document.getElementById('panel-' + tabId).classList.add('active');
+            window.dispatchEvent(new Event('resize'));
+        }
+
+
+
+        async function runAnalysis() {
+            const btn = document.getElementById('analyze-btn');
+            btn.innerText = 'ANALYZING...';
+            btn.disabled = true;
+
+            try {
+                const payload = {
+                    wing_type: activePreset,
+                    span: parseFloat(document.getElementById('sl-span').value),
+                    ar: parseFloat(document.getElementById('sl-ar').value),
+                    taper: parseFloat(document.getElementById('sl-taper').value),
+                    sweep_deg: parseFloat(document.getElementById('sl-sweep').value),
+                    altitude: parseFloat(document.getElementById('sl-alt').value),
+                    velocity: parseFloat(document.getElementById('sl-vel').value),
+                    thickness: 0.12,
+                    camber: 0.02
+                };
+
+                const res = await fetch(API_BASE + '/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                
+                renderSummary(data.summary);
+                renderCharts(data);
+                render3D(data.geometry);
+                document.getElementById('rec-text').innerText = data.summary.recommendation;
+            } catch (e) {
+                console.error(e);
+                alert('Analysis failed. Check your connection to Port 8000.');
+            } finally {
+                btn.innerText = '▶ RUN ANALYSIS';
+                btn.disabled = false;
+            }
+        }
+
+        function renderSummary(s) {
+            document.getElementById('m-ld').textContent = s.best_LD.toFixed(1);
+            document.getElementById('m-cl').textContent = s.best_CL.toFixed(3);
+            document.getElementById('m-stall').textContent = s.stall_aoa + '°';
+            document.getElementById('m-rbm').textContent = (s.RBM_Nm/1000).toFixed(1);
+        }
+
+        function renderCharts(data) {
+            document.querySelectorAll('.empty-state').forEach(el => el.style.display = 'none');
+
+            // 1. Polar
+            Plotly.newPlot('plot-polar', [{
+                x: data.polar.map(p => p.CD), y: data.polar.map(p => p.CL),
+                mode: 'lines', line: { color: '#1D4ED8', width: 3 }
+            }], { template: 'plotly_white', margin: { t: 10, b: 40, l: 40, r: 10 }, height: 250 });
+
+            // 2. Cl Dist
+            const bestAoA = data.summary.best_aoa;
+            const bestP = data.polar.find(p => p.aoa === bestAoA) || data.polar[0];
+            Plotly.newPlot('plot-cl-dist', [{
+                x: data.y_coords, y: bestP.cl_dist, fill: 'tozeroy', line: { color: '#1D4ED8' }
+            }], { template: 'plotly_white', margin: { t: 10, b: 40, l: 40, r: 10 }, height: 250 });
+
+            // 3. Stall
+            Plotly.newPlot('plot-stall', [
+                { x: data.y_coords, y: data.cl_max_dist, name: 'Cl Max', line: { dash: 'dash', color: '#059669' } },
+                { x: data.y_coords, y: bestP.cl_dist, name: 'Actual Cl', fill: 'tonexty', line: { color: '#DC2626' } }
+            ], { template: 'plotly_white', margin: { t: 10, b: 40, l: 40, r: 10 }, height: 250, legend: { orientation: 'h', y: -0.2 } });
+
+            // 4. Budget
+            Plotly.newPlot('plot-budget', [{
+                x: Object.keys(data.drag_budget), y: Object.values(data.drag_budget).map(v => v * 10000),
+                type: 'bar', marker: { color: '#1D4ED8' }
+            }], { template: 'plotly_white', margin: { t: 10, b: 40, l: 50, r: 10 }, height: 250 });
+
+
+
+            // 6. Planform
+            const g = data.geometry;
+            const te_x = g.le_x.map((le, i) => le + g.chord[i]);
+            const x_poly = [...g.y_st, ...[...g.y_st].reverse()];
+            const y_poly = [...g.le_x, ...te_x.slice().reverse()];
+            Plotly.newPlot('plot-planform', [{
+                x: x_poly,
+                y: y_poly,
+                fill: 'toself',
+                mode: 'lines',
+                line: { color: '#1d4ed8', width: 2 },
+                fillcolor: 'rgba(29,78,216,0.08)',
+                name: 'Wing Planform'
+            }], {
+                template: 'plotly_white',
+                margin: { t: 10, b: 40, l: 40, r: 10 },
+                height: 250,
+                yaxis: { autorange: 'reversed', scaleanchor: 'x', title: 'Chord position (m)' },
+                xaxis: { title: 'Span (m)' }
+            });
+
+            // CL vs alpha (lift curve)
+            Plotly.newPlot('plot-cl-alpha', [{
+                x: data.polar.map(p => p.aoa),
+                y: data.polar.map(p => p.CL),
+                mode: 'lines+markers',
+                line: { color: '#1D4ED8', width: 2 },
+                marker: { size: 4 },
+                name: 'CL'
+            }], {
+                template: 'plotly_white',
+                margin: { t: 10, b: 40, l: 40, r: 10 }, height: 250,
+                xaxis: { title: 'α (deg)' }, yaxis: { title: 'CL' }
+            });
+
+            // CD vs alpha (drag curve)
+            Plotly.newPlot('plot-cd-alpha', [{
+                x: data.polar.map(p => p.aoa),
+                y: data.polar.map(p => p.CD * 10000),
+                mode: 'lines+markers',
+                line: { color: '#DC2626', width: 2 },
+                marker: { size: 4 },
+                name: 'CD (counts)'
+            }], {
+                template: 'plotly_white',
+                margin: { t: 10, b: 40, l: 40, r: 10 }, height: 250,
+                xaxis: { title: 'α (deg)' }, yaxis: { title: 'CD (drag counts × 10⁴)' }
+            });
+
+            // L/D vs alpha (efficiency)
+            const bestAoAld = data.summary.best_aoa;
+            Plotly.newPlot('plot-ld-alpha', [
+                {
+                    x: data.polar.map(p => p.aoa),
+                    y: data.polar.map(p => p.LD),
+                    mode: 'lines',
+                    line: { color: '#059669', width: 2 },
+                    name: 'L/D'
+                },
+                {
+                    x: [bestAoAld], y: [data.summary.best_LD],
+                    mode: 'markers',
+                    marker: { color: '#F59E0B', size: 10, symbol: 'star' },
+                    name: 'Best L/D'
+                }
+            ], {
+                template: 'plotly_white',
+                margin: { t: 10, b: 40, l: 40, r: 10 }, height: 250,
+                xaxis: { title: 'α (deg)' }, yaxis: { title: 'L/D' }
+            });
+
+            // CDi vs alpha (induced drag)
+            Plotly.newPlot('plot-cdi-alpha', [
+                {
+                    x: data.polar.map(p => p.aoa),
+                    y: data.polar.map(p => p.CDi * 10000),
+                    mode: 'lines',
+                    fill: 'tozeroy',
+                    line: { color: '#7C3AED', width: 2 },
+                    fillcolor: 'rgba(124,58,237,0.08)',
+                    name: 'CDi'
+                },
+                {
+                    x: data.polar.map(p => p.aoa),
+                    y: data.polar.map(p => p.CD0 * 10000),
+                    mode: 'lines',
+                    line: { color: '#94A3B8', width: 1, dash: 'dash' },
+                    name: 'CD0 (parasite)'
+                }
+            ], {
+                template: 'plotly_white',
+                margin: { t: 10, b: 40, l: 40, r: 10 }, height: 250,
+                xaxis: { title: 'α (deg)' }, yaxis: { title: 'Drag counts (× 10⁴)' },
+                legend: { orientation: 'h', y: -0.25 }
+            });
+
+            // Cm vs alpha (only if backend sends it)
+            if (data.polar[0].Cm !== undefined) {
+                Plotly.newPlot('plot-cm-alpha', [{
+                    x: data.polar.map(p => p.aoa),
+                    y: data.polar.map(p => p.Cm),
+                    mode: 'lines',
+                    line: { color: '#0891B2', width: 2 },
+                    name: 'Cm'
+                }], {
+                    template: 'plotly_white',
+                    margin: { t: 10, b: 40, l: 40, r: 10 }, height: 250,
+                    xaxis: { title: 'α (deg)' }, yaxis: { title: 'Cm (pitching moment)' },
+                    shapes: [{ type: 'line', x0: -4, x1: 15, y0: 0, y1: 0, 
+                               line: { color: '#94a3b8', dash: 'dot', width: 1 } }]
+                });
+            }
+
+            // Induced AoA distribution (only if backend sends it)
+            const bestPolar = data.polar.find(p => p.aoa === data.summary.best_aoa) || data.polar[0];
+            if (bestPolar.alpha_i_dist !== undefined) {
+                Plotly.newPlot('plot-alpha-i', [{
+                    x: data.y_coords,
+                    y: bestPolar.alpha_i_dist,
+                    fill: 'tozeroy',
+                    line: { color: '#F97316', width: 2 },
+                    fillcolor: 'rgba(249,115,22,0.08)',
+                    name: 'αi (deg)'
+                }], {
+                    template: 'plotly_white',
+                    margin: { t: 10, b: 40, l: 40, r: 10 }, height: 250,
+                    xaxis: { title: 'Span y (m)' }, yaxis: { title: 'Induced AoA αi (°)' }
+                });
+            }
+        }
+
+        function render3D(geo) {
+            document.getElementById('empty-3d').style.display = 'none';
+
+            const trace1 = {
+                type: 'surface', x: geo.X, y: geo.Y, z: geo.Z_top,
+                colorscale: [[0, '#eff6ff'], [1, '#1d4ed8']],
+                showscale: false, opacity: 0.95, name: 'Wing Top'
+            };
+            const trace2 = {
+                type: 'surface', x: geo.X, y: geo.Y, z: geo.Z_bot,
+                colorscale: [[0, '#f8fafc'], [1, '#94a3b8']],
+                showscale: false, opacity: 0.5, name: 'Wing Bottom'
+            };
+
+            // Leading edge line
+            const traceLE = {
+                type: 'scatter3d',
+                x: geo.le_x, y: geo.y_st,
+                z: new Array(geo.y_st.length).fill(0),
+                mode: 'lines',
+                line: { color: '#000000', width: 5 },
+                name: 'Leading Edge'
+            };
+
+            // Trailing edge line
+            const te_x = geo.le_x.map((le, i) => le + geo.chord[i]);
+            const traceTE = {
+                type: 'scatter3d',
+                x: te_x, y: geo.y_st,
+                z: new Array(geo.y_st.length).fill(0),
+                mode: 'lines',
+                line: { color: '#1e3a8a', width: 4 },
+                name: 'Trailing Edge'
+            };
+
+            const layout = {
+                margin: { l: 0, r: 0, b: 0, t: 0 },
+                scene: {
+                    aspectmode: 'manual',
+                    aspectratio: { x: 1, y: 4, z: 0.5 },
+                    camera: { eye: { x: 1.5, y: -2, z: 1.2 } },
+                    xaxis: { title: 'Chord (m)' },
+                    yaxis: { title: 'Span (m)' },
+                    zaxis: { title: 'Thickness (m)' }
+                },
+                legend: { x: 0.01, y: 0.99 }
+            };
+
+            Plotly.newPlot('plot-3d', [trace1, trace2, traceLE, traceTE], layout, { responsive: true });
+        }
+
+        // Init connection check
+        (async () => {
+            try {
+                const res = await fetch(API_BASE + '/');
+                if (res.ok) {
+                    const status = document.getElementById('api-status');
+                    if (status) {
+                        status.querySelector('span').classList.replace('bg-slate-300', 'bg-green-500');
+                        status.querySelectorAll('span')[1].textContent = 'Engine Online';
+                    }
+                }
+            } catch (e) {}
+        })();
+    </script>
+</body>
+</html>
