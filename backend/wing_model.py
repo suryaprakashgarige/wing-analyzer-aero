@@ -74,7 +74,7 @@ def run_llt(span, AR, taper, sweep_deg, velocity, altitude,
         Cm_ac = -np.pi * camber / 2        # moment about aerodynamic center
         Cm    = round(float(Cm_ac), 5)
         
-        alpha_i_dist = np.degrees(cls / (np.pi * AR))   # LLT elliptic approx per station
+        alpha_i_dist = np.full(N, float(np.degrees(cl_avg / (np.pi * AR))))   # LLT elliptic approx
 
         polars.append({
             "aoa":  round(float(aoa), 1),
@@ -142,7 +142,7 @@ def analyze_wing(params):
     best = max(polars, key=lambda x: x["LD"])
     stall_aoa = 14.0
     for i in range(3, len(polars)):
-        if polars[i]["CL"] < polars[i-1]["CL"] - 0.01:
+        if polars[i]["CL"] < polars[i-1]["CL"] - 0.05:
             stall_aoa = polars[i]["aoa"]
             break
 
@@ -154,6 +154,7 @@ def analyze_wing(params):
         cl_max_dist.append(max(cls))
 
     # ── Total Aircraft Drag Budget (Cell 17 Logic) ──
+    # Empirical estimate: assumes fuse_length ~ 0.72 * span for general aviation. Adjust for other aircraft categories.
     fuse_length   = span * 0.72
     fuse_diameter = fuse_length / 8.0
     S_wet_fuse    = np.pi * fuse_diameter * fuse_length
@@ -163,6 +164,7 @@ def analyze_wing(params):
     f_ratio       = fuse_length / fuse_diameter
     FF_fuse       = 1 + 60/f_ratio**3 + f_ratio/400
     CD0_fuse      = Cf_fuse * FF_fuse * S_wet_fuse / (S + 1e-9)
+    # Tail drag estimated as 25% of wing parasite drag (textbook approximation).
     CD0_tail      = 0.25 * best["CD0"]
     CD0_inter     = 0.05 * (best["CD0"] + CD0_fuse + CD0_tail)
 

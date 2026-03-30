@@ -266,6 +266,22 @@
                         <input type="range" id="sl-vel" min="20" max="300" step="1" value="55" oninput="updateVal('vel', this.value, ' m/s')">
                     </div>
 
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <span class="slider-label">Airfoil Thickness</span>
+                            <span class="slider-value" id="val-thickness">0.12</span>
+                        </div>
+                        <input type="range" id="sl-thickness" min="0.06" max="0.24" step="0.01" value="0.12" oninput="updateVal('thickness', this.value, '')">
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <span class="slider-label">Camber</span>
+                            <span class="slider-value" id="val-camber">0.02</span>
+                        </div>
+                        <input type="range" id="sl-camber" min="0.00" max="0.09" step="0.01" value="0.02" oninput="updateVal('camber', this.value, '')">
+                    </div>
+
 
                 </div>
             </div>
@@ -400,9 +416,10 @@
     </div>
 
     <script>
-        const API_BASE = window.location.hostname === 'localhost'
+        // Set this to your deployed backend URL e.g. https://your-app.onrender.com
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? 'http://localhost:8000'
-            : '';
+            : 'REPLACE_WITH_YOUR_BACKEND_URL';
         let activePreset = 'ga';
 
         const PRESETS = {
@@ -471,8 +488,8 @@
                     sweep_deg: parseFloat(document.getElementById('sl-sweep').value),
                     altitude: parseFloat(document.getElementById('sl-alt').value),
                     velocity: parseFloat(document.getElementById('sl-vel').value),
-                    thickness: 0.12,
-                    camber: 0.02
+                    thickness: parseFloat(document.getElementById('sl-thickness').value),
+                    camber: parseFloat(document.getElementById('sl-camber').value)
                 };
 
                 const res = await fetch(API_BASE + '/analyze', {
@@ -488,7 +505,7 @@
                 document.getElementById('rec-text').innerText = data.summary.recommendation;
             } catch (e) {
                 console.error(e);
-                alert('Analysis failed. Check your connection to Port 8000.');
+                alert('Analysis failed. Please try again or check that the backend service is running.');
             } finally {
                 btn.innerText = '▶ RUN ANALYSIS';
                 btn.disabled = false;

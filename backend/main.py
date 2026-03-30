@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from wing_model import analyze_wing
 import uvicorn
 
@@ -15,14 +15,14 @@ app.add_middleware(
 
 class WingInput(BaseModel):
     wing_type: str = "General Aviation"
-    span: float = 11.0
-    ar: float = 7.2
-    taper: float = 0.45
-    sweep_deg: float = 3.0
-    altitude: float = 2000.0
-    velocity: float = 55.0
-    thickness: float = 0.12
-    camber: float = 0.02
+    span: float = Field(default=11.0, gt=0, lt=200)
+    ar: float = Field(default=7.2, gt=1, lt=50)
+    taper: float = Field(default=0.45, gt=0.1, lt=1.0)
+    sweep_deg: float = Field(default=3.0, ge=-15, le=65)
+    altitude: float = Field(default=2000.0, ge=0, lt=15000)
+    velocity: float = Field(default=55.0, gt=5, lt=400)
+    thickness: float = Field(default=0.12, gt=0.04, lt=0.25)
+    camber: float = Field(default=0.02, ge=0, lt=0.10)
 
 
 
