@@ -29,9 +29,6 @@ class WingInput(BaseModel):
 
 
 
-@app.get("/")
-def health():
-    return {"status": "Wing Analyzer API is running", "version": "2.0"}
 
 @app.post("/analyze")
 def analyze(wing: WingInput):
