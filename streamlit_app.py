@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from backend.wing_model import analyze_wing
 
-st.set_page_config(page_title="Wing Analyzer Pro", layout="wide")
+st.set_page_config(page_title="Wing Analyzer", layout="wide")
 
 # Custom CSS for Premium Look
 st.markdown("""
@@ -50,8 +50,8 @@ thick = st.sidebar.slider("Airfoil Thickness", 0.06, 0.24, p["thick"], 0.01)
 cam = st.sidebar.slider("Camber", 0.00, 0.09, p["cam"], 0.01)
 
 # Main Page Header
-st.title("Wing Analyzer Pro")
-st.caption("Aerodynamic Multi-Lifting Line Theory Analysis Engine | Built for IARE Hyderabad")
+st.title("Wing Analyzer")
+st.caption("Wing Analysis using Physics informed Machine Learning Model by Garige Surya Prakash and Kolanu Lokesh")
 
 # Analysis Logic
 if st.button("RUN ANALYSIS", type="primary", use_container_width=True):
